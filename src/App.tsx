@@ -43,7 +43,14 @@ const theme = createTheme({
 function App() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [loginOpen, setLoginOpen] = useState(true);
+  const [loginOpen, setLoginOpen] = useState(() => {
+    const auth = localStorage.getItem('auth');
+    if (auth) {
+      const authData = JSON.parse(auth);
+      return Date.now() - authData.timestamp >= 30 * 24 * 60 * 60 * 1000;
+    }
+    return true;
+  });
   
 
   const [password, setPassword] = useState('');
@@ -94,7 +101,6 @@ function App() {
       const authData = JSON.parse(auth);
       if (Date.now() - authData.timestamp < 30 * 24 * 60 * 60 * 1000) {
         setIsAdmin(authData.role === 'admin');
-        setLoginOpen(false);
       }
     }
   }, []);
