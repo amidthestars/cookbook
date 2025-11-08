@@ -5,7 +5,7 @@ import {
   DialogContent, DialogActions, IconButton,
   Slider, List, ListItem, ListItemText, Tabs, Tab, Checkbox, ThemeProvider, createTheme
 } from '@mui/material';
-import { Add, Delete, PushPin, PushPinOutlined, Close, Edit, PhotoCamera, FileUpload, FileDownload } from '@mui/icons-material';
+import { Add, Delete, PushPin, PushPinOutlined, Close, Edit, PhotoCamera, FileUpload, FileDownload, Search } from '@mui/icons-material';
 import { Grid } from '@mui/material';
 import { scrapeRecipeFromUrl } from './recipeScraper';
 
@@ -64,6 +64,7 @@ function App() {
   const [addTab, setAddTab] = useState(0);
   const [url, setUrl] = useState('');
   const [checkedIngredients, setCheckedIngredients] = useState<{[key: string]: boolean}>({});
+  const [searchTerm, setSearchTerm] = useState('');
   const [newRecipe, setNewRecipe] = useState({
     title: '',
     ingredients: [''],
@@ -443,7 +444,13 @@ function App() {
     });
   };
 
-  const otherRecipes = recipes.filter(r => !r.pinned);
+  const otherRecipes = recipes.filter(r => !r.pinned).filter(recipe => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return recipe.title.toLowerCase().includes(term) ||
+           recipe.ingredients.some(ing => ing.toLowerCase().includes(term)) ||
+           recipe.instructions.some(inst => inst.toLowerCase().includes(term));
+  });
 
 
 
@@ -463,7 +470,7 @@ function App() {
         PaperProps={{ sx: { borderRadius: 4, p: 2 } }} 
         disableEscapeKeyDown={false}
       >
-        <DialogTitle>COOKBOOK</DialogTitle>
+        <DialogTitle>Welcome to my cookbook!</DialogTitle>
         <IconButton
           onClick={() => setLoginOpen(false)}
           sx={{ 
@@ -609,10 +616,20 @@ function App() {
       )}
 
       {/* Recipe Grid */}
-      {otherRecipes.length > 0 && (
+      {recipes.filter(r => !r.pinned).length > 0 && (
         <Box>
-          <Box className="section-lines">
-            <Typography variant="h5" className="section-title">All Recipes</Typography>
+          <Box className="section-lines" sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h5" className="section-title-flex">All Recipes</Typography>
+            <TextField
+              size="small"
+              placeholder="Search recipes..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-field"
+              InputProps={{
+                startAdornment: <Search sx={{ color: 'black', mr: 1 }} />
+              }}
+            />
           </Box>
           <Grid container spacing={3} sx={{ mt: 8 }}>
             {otherRecipes.map(recipe => (

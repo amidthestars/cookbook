@@ -35,8 +35,8 @@ body {
 .section-lines {
   border-top: 2px solid black !important;
   border-bottom: 2px solid black !important;
-  padding-top: 16px !important;
-  padding-bottom: 8px !important;
+  padding: 16px 0 8px 0 !important;
+  align-items: center !important;
 }
 
 .dialog-content {
@@ -190,4 +190,26 @@ code {
 .fab-add:hover {
   background-color: #f5f5f5 !important;
   transform: scale(1.05);
+}
+/* Search section alignment */
+.section-title-flex {
+  margin-bottom: 0 !important;
+  color: black !important;
+  font-family: 'Momo Trust Display', sans-serif !important;
+}
+
+.search-field {
+  background-color: white !important;
+  border-radius: 8px !important;
+  width: 120px !important;
+}
+
+.search-field .MuiOutlinedInput-root {
+  font-family: 'Momo Trust Display', sans-serif !important;
+}
+
+@media (min-width: 600px) {
+  .search-field {
+    width: 200px !important;
+  }
 }
