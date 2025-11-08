@@ -17,6 +17,7 @@ interface Recipe {
   image?: string;
   servings?: string;
   url?: string;
+  notes?: string;
   pinned: boolean;
 }
 
@@ -62,7 +63,8 @@ function App() {
     instructions: [''],
     image: '',
     servings: '',
-    url: ''
+    url: '',
+    notes: ''
   });
 
   useEffect(() => {
@@ -236,10 +238,11 @@ function App() {
       image: newRecipe.image,
       servings: newRecipe.servings,
       url: newRecipe.url,
+      notes: newRecipe.notes,
       pinned: false
     };
     saveRecipes([...recipes, recipe]);
-    setNewRecipe({ title: '', ingredients: [''], instructions: [''], image: '', servings: '', url: '' });
+    setNewRecipe({ title: '', ingredients: [''], instructions: [''], image: '', servings: '', url: '', notes: '' });
     setImagePreview('');
     setUrl('');
     setAddTab(0);
@@ -284,7 +287,8 @@ function App() {
       instructions: [...recipe.instructions],
       image: recipe.image || '',
       servings: recipe.servings || '',
-      url: recipe.url || ''
+      url: recipe.url || '',
+      notes: recipe.notes || ''
     });
     setImagePreview(recipe.image || '');
     setEditOpen(true);
@@ -314,7 +318,8 @@ function App() {
       instructions: newRecipe.instructions.filter(i => i.trim()),
       image: newRecipe.image,
       servings: newRecipe.servings,
-      url: newRecipe.url
+      url: newRecipe.url,
+      notes: newRecipe.notes
     };
     
     const updatedRecipes = recipes.map(r => 
@@ -322,7 +327,7 @@ function App() {
     );
     
     saveRecipes(updatedRecipes);
-    setNewRecipe({ title: '', ingredients: [''], instructions: [''], image: '', servings: '', url: '' });
+    setNewRecipe({ title: '', ingredients: [''], instructions: [''], image: '', servings: '', url: '', notes: '' });
     setImagePreview('');
     setEditingRecipe(null);
     setEditOpen(false);
@@ -662,7 +667,7 @@ function App() {
                   </IconButton>
                 </Box>
               ))}
-              <Button onClick={() => setNewRecipe({ ...newRecipe, ingredients: [...newRecipe.ingredients, ''] })} sx={{ color: '#026633' }}>
+              <Button onClick={() => setNewRecipe({ ...newRecipe, ingredients: [...newRecipe.ingredients, ''] })} sx={{ color: '#D81B60' }}>
                 Add Ingredient
               </Button>
 
@@ -689,20 +694,31 @@ function App() {
                   </IconButton>
                 </Box>
               ))}
-              <Button onClick={() => setNewRecipe({ ...newRecipe, instructions: [...newRecipe.instructions, ''] })} sx={{ color: '#026633' }}>
+              <Button onClick={() => setNewRecipe({ ...newRecipe, instructions: [...newRecipe.instructions, ''] })} sx={{ color: '#D81B60' }}>
                 Add Step
               </Button>
+
+              <Typography variant="h6" sx={{ mb: 1, mt: 2, fontFamily: 'Momo Trust Display, sans-serif' }}>Notes (optional)</Typography>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                value={newRecipe.notes}
+                onChange={(e) => setNewRecipe({ ...newRecipe, notes: e.target.value })}
+                placeholder="Any additional notes, tips, or variations..."
+                sx={{ mb: 2 }}
+              />
             </Box>
           )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAddOpen(false)}>Cancel</Button>
           {addTab === 0 ? (
-            <Button onClick={scrapeRecipe} variant="contained" disabled={!url.trim()} sx={{ backgroundColor: '#026633', '&:hover': { backgroundColor: '#085025' } }}>
+            <Button onClick={scrapeRecipe} variant="contained" disabled={!url.trim()} sx={{ backgroundColor: '#D81B60', '&:hover': { backgroundColor: '#C2185B' } }}>
               Scrape Recipe
             </Button>
           ) : (
-            <Button onClick={addRecipe} variant="contained" disabled={!newRecipe.title.trim()} sx={{ backgroundColor: '#026633', '&:hover': { backgroundColor: '#085025' } }}>
+            <Button onClick={addRecipe} variant="contained" disabled={!newRecipe.title.trim()} sx={{ backgroundColor: '#D81B60', '&:hover': { backgroundColor: '#C2185B' } }}>
               Add Recipe
             </Button>
           )}
@@ -808,7 +824,7 @@ function App() {
               </IconButton>
             </Box>
           ))}
-          <Button onClick={() => setNewRecipe({ ...newRecipe, ingredients: [...newRecipe.ingredients, ''] })} sx={{ color: '#026633' }}>
+          <Button onClick={() => setNewRecipe({ ...newRecipe, ingredients: [...newRecipe.ingredients, ''] })} sx={{ color: '#D81B60' }}>
             Add Ingredient
           </Button>
 
@@ -835,13 +851,24 @@ function App() {
               </IconButton>
             </Box>
           ))}
-          <Button onClick={() => setNewRecipe({ ...newRecipe, instructions: [...newRecipe.instructions, ''] })} sx={{ color: '#026633' }}>
+          <Button onClick={() => setNewRecipe({ ...newRecipe, instructions: [...newRecipe.instructions, ''] })} sx={{ color: '#D81B60' }}>
             Add Step
           </Button>
+
+          <Typography variant="h6" sx={{ mb: 1, mt: 2, fontFamily: 'Momo Trust Display, sans-serif' }}>Notes (optional)</Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            value={newRecipe.notes}
+            onChange={(e) => setNewRecipe({ ...newRecipe, notes: e.target.value })}
+            placeholder="Any additional notes, tips, or variations..."
+            sx={{ mb: 2 }}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditOpen(false)}>Cancel</Button>
-          <Button onClick={saveEditedRecipe} variant="contained" disabled={!newRecipe.title.trim()} sx={{ backgroundColor: '#026633', '&:hover': { backgroundColor: '#085025' } }}>
+          <Button onClick={saveEditedRecipe} variant="contained" disabled={!newRecipe.title.trim()} sx={{ backgroundColor: '#D81B60', '&:hover': { backgroundColor: '#C2185B' } }}>
             Save Changes
           </Button>
         </DialogActions>

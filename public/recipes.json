@@ -1,1 +1,63 @@
-[]
+[
+  {
+    "id": 1762584701466,
+    "title": "Easy Crème Brûlée",
+    "ingredients": [
+      "8 shallow 4-ounce oval ramekins",
+      "5 large egg yolks",
+      "3/4 cup (150g) granulated sugar, divided",
+      "3 cups (720ml) heavy cream or heavy whipping cream*",
+      "1/2 teaspoon espresso powder (optional but recommended)*",
+      "1/4 teaspoon salt",
+      "1 and 1/2 teaspoons pure vanilla extract*"
+    ],
+    "instructions": [
+      "Preheat oven to 325°F (163°C).",
+      "Whisk the egg yolks and 1/2 cup (100g) of granulated sugar together. Set aside. (At this point or before you temper the egg yolks in the next step, bring a small kettle or pot of water to a boil. You&#8217;ll need hot water to pour into the baking sheet for the water bath.)",
+      "Heat the heavy cream, espresso powder, and salt together in a medium saucepan over medium heat. As soon as it begins to simmer, remove from heat. Stir in the vanilla extract. Remove about 1/2 cup of warm heavy cream and, in a slow and steady stream, whisk into the egg yolks. Keep those egg yolks moving so they don&#8217;t scramble. In a slow and steady stream, pour and whisk the egg yolk mixture into the warm heavy cream.",
+      "Place ramekins in a large baking pan. If you don&#8217;t have 1 pan large enough, bake them in a couple pans. Divide custard between each ramekin, filling to the top. Carefully fill the pan with about a 1/2 inch of the hot water. The baking pan will be hot so use an oven mitt to carefully transfer the pan to the oven.",
+      "Bake until the edges are set and centers are a little jiggly. The time depends on the depth of your ramekins. My ramekins are 1-inch and the custard takes 35 minutes. Begin checking them at 30 minutes. For a more accurate sign, they&#8217;re done when an instant read thermometer registers 170°F (77°C).",
+      "Remove pan from the oven and, using an oven mitt, remove the ramekins from the pan. Place on a wire rack to cool for at least 1 hour. Place in the refrigerator, loosely covered, and chill for at least 4 hours and up to 2 days before topping.",
+      "Using the remaining granulated sugar, sprinkle a thin layer all over the surface of the chilled custards. Caramelize the sugar with a kitchen torch and serve immediately or store in the refrigerator for up to 1 hour before serving. (Caramelized topping is best enjoyed right away.)"
+    ],
+    "image": "https://sallysbakingaddiction.com/wp-content/uploads/2018/07/best-creme-brulee-recipe-4-225x225.jpg",
+    "servings": [
+      "8",
+      "serves 8"
+    ],
+    "url": "https://sallysbakingaddiction.com/creme-brulee/",
+    "pinned": false
+  },
+  {
+    "id": 1762584820098,
+    "title": "Late Summer Plum Cake",
+    "ingredients": [
+      "1½ cups all-purpose flour, spooned into measuring cup and leveled-off",
+      "1½ teaspoons baking powder",
+      "1 teaspoon  cinnamon",
+      "¼ teaspoon nutmeg",
+      "⅛ teaspoon cardamom",
+      "½ teaspoon  salt",
+      "8 tablespoons (½ cup) unsalted butter, softened, plus more for greasing the pan",
+      "1 cup plus 2 tablespoons sugar, divided",
+      "1  large egg",
+      "1 teaspoon vanilla extract",
+      "½ cup milk (low-fat is fine)",
+      "1 pound plums, pitted and quartered"
+    ],
+    "instructions": [
+      "Preheat oven to 350°F and set an oven rack in the middle position. Grease a 9-inch springform pan. (Alternatively, the cake may be made in a 9-inch cake pan or pie pan and served directly from the pan.)",
+      "In a large bowl, whisk together the flour, baking powder, cinnamon, nutmeg, cardamom, and salt.",
+      "In the bowl of an electric mixer fitted with the paddle attachment or beaters, cream the butter and 1 cup of the sugar until pale and fluffy, about 3 minutes. Add the egg and vanilla and beat on low speed until well combined. Gradually add the flour mixture, alternating with the milk, and beat on low speed until smooth. (Note: the batter will be quite thick.)",
+      "Transfer the batter to the prepared pan and smooth the top with an offset spatula. Arrange the plums on top, skin side up, in a circular pattern so that they mostly cover the batter. Sprinkle the remaining 2 tablespoons of sugar over the plums.",
+      "Bake for 60 to 70 minutes, until golden on top and set in the center.",
+      "When the cake is hot out of the oven, run a knife around the edges of the pan and then remove the springform edge, leaving the base in place (if using a springform pan). Let the cake cool on a rack completely. Slice and serve with ice cream or whipped cream, if desired.",
+      "<strong>Storage:</strong> This cake keeps well, loosely covered at room temperature, for several days.",
+      "<strong>Freezer-Friendly Instructions:</strong> The cake can be frozen for up to 3 months.  After it is completely cooled, double-wrap it securely with aluminum foil or plastic freezer wrap, or place it in heavy-duty freezer bag.  Thaw overnight on the countertop before serving."
+    ],
+    "image": "https://www.onceuponachef.com/images/2016/08/Plum-Cake-2-1200x924.jpg",
+    "servings": "8-10 ",
+    "url": "https://www.onceuponachef.com/recipes/late-summer-plum-cake.html",
+    "pinned": false
+  }
+]
