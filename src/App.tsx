@@ -97,22 +97,6 @@ function App() {
         setLoginOpen(false);
       }
     }
-    
-    // Force close all dialogs on mount
-    setAddOpen(false);
-    setEditOpen(false);
-    
-    // Auto-open pinned recipe if it exists (only after recipes are loaded)
-    if (saved) {
-      const pinnedRecipe = JSON.parse(saved).find((r: Recipe) => r.pinned);
-      if (pinnedRecipe) {
-        setSelectedRecipe(pinnedRecipe);
-        setPortionMultiplier(1);
-        setViewOpen(true);
-      } else {
-        setViewOpen(false);
-      }
-    }
   }, []);
 
   // Debug state
@@ -120,15 +104,16 @@ function App() {
     console.log('Dialog states - loginOpen:', loginOpen, 'addOpen:', addOpen, 'viewOpen:', viewOpen, 'editOpen:', editOpen);
   }, [loginOpen, addOpen, viewOpen, editOpen]);
 
-  // Auto-open pinned recipe when recipes change
+  // Controlled pinned recipe auto-open
   useEffect(() => {
-    const pinnedRecipe = recipes.find(r => r.pinned);
-    if (pinnedRecipe && !loginOpen && recipes.length > 0) {
-      setSelectedRecipe(pinnedRecipe);
-      setPortionMultiplier(1);
-      setViewOpen(true);
-    } else if (!pinnedRecipe && viewOpen && selectedRecipe?.pinned) {
-      setViewOpen(false);
+    if (!loginOpen && recipes.length > 0 && !viewOpen) {
+      const pinned = recipes.find(r => r.pinned);
+      if (pinned) {
+        setSelectedRecipe(pinned);
+        setPortionMultiplier(1);
+        setCheckedIngredients({});
+        setViewOpen(true);
+      }
     }
   }, [recipes, loginOpen]);
 
@@ -153,7 +138,7 @@ function App() {
     setEditingRecipe(null);
   };
 
-  // Debug click events and keyboard shortcuts
+  // Emergency dialog close and keyboard shortcuts
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       console.log('Click detected on:', e.target);
@@ -177,13 +162,36 @@ function App() {
       }
     };
     
+    // Emergency close for mobile - triple tap anywhere to close all dialogs
+    let tapCount = 0;
+    let tapTimer: NodeJS.Timeout;
+    const handleTripleTap = () => {
+      tapCount++;
+      if (tapCount === 1) {
+        tapTimer = setTimeout(() => {
+          tapCount = 0;
+        }, 1000);
+      } else if (tapCount === 3) {
+        clearTimeout(tapTimer);
+        tapCount = 0;
+        if (loginOpen || addOpen || editOpen || viewOpen) {
+          closeAllDialogs();
+          console.log('Emergency close triggered by triple tap');
+        }
+      }
+    };
+    
     document.addEventListener('click', handleClick);
     document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('touchend', handleTripleTap);
+    
     return () => {
       document.removeEventListener('click', handleClick);
       document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('touchend', handleTripleTap);
+      if (tapTimer) clearTimeout(tapTimer);
     };
-  }, []);
+  }, [loginOpen, addOpen, editOpen, viewOpen]);
 
   const saveRecipes = (newRecipes: Recipe[]) => {
     setRecipes(newRecipes);
@@ -285,11 +293,42 @@ function App() {
   };
 
   const deleteRecipe = (id: number) => {
-    saveRecipes(recipes.filter(r => r.id !== id));
+    const recipe = recipes.find(r => r.id === id);
+    if (recipe && window.confirm(`Are you sure you want to delete "${recipe.title}"?`)) {
+      saveRecipes(recipes.filter(r => r.id !== id));
+      setViewOpen(false);
+    }
+  };
+
+  // Dialog close handlers
+  const handleCloseAddDialog = () => {
+    setAddOpen(false);
+    setNewRecipe({ title: '', ingredients: [''], instructions: [''], image: '', servings: '', url: '', notes: '' });
+    setImagePreview('');
+    setUrl('');
+    setAddTab(0);
+  };
+
+  const handleCloseEditDialog = () => {
+    setEditOpen(false);
+    setEditingRecipe(null);
+    setNewRecipe({ title: '', ingredients: [''], instructions: [''], image: '', servings: '', url: '', notes: '' });
+    setImagePreview('');
+  };
+
+  const handleCloseViewDialog = () => {
     setViewOpen(false);
+    setSelectedRecipe(null);
+    setCheckedIngredients({});
   };
 
   const editRecipe = (recipe: Recipe) => {
+    // Safety guard: close other dialogs first
+    if (addOpen || viewOpen) {
+      setAddOpen(false);
+      setViewOpen(false);
+    }
+    
     setEditingRecipe(recipe);
     setNewRecipe({
       title: recipe.title,
@@ -302,7 +341,6 @@ function App() {
     });
     setImagePreview(recipe.image || '');
     setEditOpen(true);
-    setViewOpen(false);
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -375,10 +413,19 @@ function App() {
     );
     
     saveRecipes(updatedRecipes);
+    
+    // Clear all form state
     setNewRecipe({ title: '', ingredients: [''], instructions: [''], image: '', servings: '', url: '', notes: '' });
     setImagePreview('');
     setEditingRecipe(null);
+    
+    // Force close edit dialog
     setEditOpen(false);
+    
+    // If this was the selected recipe, update it
+    if (selectedRecipe && selectedRecipe.id === editingRecipe.id) {
+      setSelectedRecipe(updatedRecipe);
+    }
   };
 
   const adjustIngredient = (ingredient: string) => {
@@ -412,6 +459,20 @@ function App() {
         disableEscapeKeyDown={false}
       >
         <DialogTitle>COOKBOOK</DialogTitle>
+        <IconButton
+          onClick={() => setLoginOpen(false)}
+          sx={{ 
+            position: 'absolute', 
+            right: 8, 
+            top: 8, 
+            zIndex: 9999,
+            backgroundColor: 'rgba(255,255,255,0.9)',
+            '&:hover': { backgroundColor: 'rgba(255,255,255,1)' },
+            border: '1px solid #ccc'
+          }}
+        >
+          <Close sx={{ color: 'black' }} />
+        </IconButton>
         <DialogContent>
           <Box sx={{ mb: 2 }}>
             <TextField
@@ -440,7 +501,15 @@ function App() {
         mb: 1,
         p: 3
       }}>
-        <Typography variant="h3" className="main-title">COOKBOOK</Typography>
+        <Typography 
+          variant="h3" 
+          className="main-title"
+          sx={{
+            fontSize: { xs: '2rem', sm: '3rem' }
+          }}
+        >
+          COOKBOOK
+        </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Typography variant="body2" sx={{ color: 'black' }}>
             {isAdmin ? 'ADMIN MODE' : 'GUEST MODE'}
@@ -499,6 +568,11 @@ function App() {
               variant="outlined"
               size="large"
               onClick={() => {
+                // Safety guard: close other dialogs first
+                if (editOpen || viewOpen) {
+                  setEditOpen(false);
+                  setViewOpen(false);
+                }
                 setNewRecipe({ title: '', ingredients: [''], instructions: [''], image: '', servings: '', url: '', notes: '' });
                 setImagePreview('');
                 setUrl('');
@@ -601,6 +675,11 @@ function App() {
               boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
             }}
             onClick={() => {
+              // Safety guard: close other dialogs first
+              if (editOpen || viewOpen) {
+                setEditOpen(false);
+                setViewOpen(false);
+              }
               setNewRecipe({ title: '', ingredients: [''], instructions: [''], image: '', servings: '', url: '', notes: '' });
               setImagePreview('');
               setUrl('');
@@ -616,7 +695,7 @@ function App() {
       {/* Add Recipe Dialog */}
       <Dialog 
         open={addOpen} 
-        onClose={() => setAddOpen(false)} 
+        onClose={handleCloseAddDialog} 
         maxWidth="md" 
         fullWidth 
         disableEscapeKeyDown={false}
@@ -627,6 +706,20 @@ function App() {
           } 
         }}
       >
+        <IconButton
+          onClick={handleCloseAddDialog}
+          sx={{ 
+            position: 'absolute', 
+            right: 8, 
+            top: 8, 
+            zIndex: 9999,
+            backgroundColor: 'rgba(255,255,255,0.9)',
+            '&:hover': { backgroundColor: 'rgba(255,255,255,1)' },
+            border: '1px solid #ccc'
+          }}
+        >
+          <Close sx={{ color: 'black' }} />
+        </IconButton>
         <DialogTitle sx={{ fontFamily: 'Momo Trust Display, sans-serif' }}>Add New Recipe</DialogTitle>
         <DialogContent>
           <Tabs value={addTab} onChange={(_, newTab) => setAddTab(newTab)} sx={{ mb: 2 }}>
@@ -802,7 +895,7 @@ function App() {
       {/* Edit Recipe Dialog */}
       <Dialog 
         open={editOpen} 
-        onClose={() => setEditOpen(false)} 
+        onClose={handleCloseEditDialog} 
         maxWidth="md" 
         fullWidth 
         disableEscapeKeyDown={false}
@@ -813,6 +906,20 @@ function App() {
           } 
         }}
       >
+        <IconButton
+          onClick={handleCloseEditDialog}
+          sx={{ 
+            position: 'absolute', 
+            right: 8, 
+            top: 8, 
+            zIndex: 9999,
+            backgroundColor: 'rgba(255,255,255,0.9)',
+            '&:hover': { backgroundColor: 'rgba(255,255,255,1)' },
+            border: '1px solid #ccc'
+          }}
+        >
+          <Close sx={{ color: 'black' }} />
+        </IconButton>
         <DialogTitle sx={{ fontFamily: 'Momo Trust Display, sans-serif' }}>Edit Recipe</DialogTitle>
         <DialogContent>
           <TextField
@@ -941,7 +1048,7 @@ function App() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditOpen(false)}>Cancel</Button>
+          <Button onClick={handleCloseEditDialog}>Cancel</Button>
           <Button onClick={saveEditedRecipe} variant="contained" disabled={!newRecipe.title.trim()} sx={{ backgroundColor: '#D81B60', '&:hover': { backgroundColor: '#C2185B' } }}>
             Save Changes
           </Button>
@@ -950,11 +1057,11 @@ function App() {
 
       {/* View Recipe Dialog */}
       <Dialog 
-        open={viewOpen} 
-        onClose={() => {}} 
+        open={viewOpen && selectedRecipe !== null} 
+        onClose={selectedRecipe?.pinned ? () => {} : handleCloseViewDialog} 
         maxWidth="md" 
         fullWidth 
-        disableEscapeKeyDown={true}
+        disableEscapeKeyDown={selectedRecipe?.pinned ? true : false}
         PaperProps={{ 
           sx: { 
             borderRadius: 4,
@@ -962,31 +1069,40 @@ function App() {
           } 
         }}
       >
+        {selectedRecipe && !selectedRecipe.pinned && (
+          <IconButton
+            onClick={handleCloseViewDialog}
+            sx={{ 
+              position: 'absolute', 
+              right: 8, 
+              top: 8, 
+              zIndex: 9999,
+              backgroundColor: 'rgba(255,255,255,0.9)',
+              '&:hover': { backgroundColor: 'rgba(255,255,255,1)' },
+              border: '1px solid #ccc'
+            }}
+          >
+            <Close sx={{ color: 'black' }} />
+          </IconButton>
+        )}
         {selectedRecipe && (
           <>
             <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography variant="h5" sx={{ fontFamily: 'Momo Trust Display, sans-serif' }}>{selectedRecipe.title}</Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                {selectedRecipe.pinned && (
-                  <Button
-                    onClick={() => {
-                      togglePin(selectedRecipe.id);
-                      setViewOpen(false);
-                      setSelectedRecipe(null);
-                    }}
-                    variant="outlined"
-                    size="small"
-                    className="secondary-button"
-                  >
-                    Unpin Recipe
-                  </Button>
-                )}
-                {isAdmin && (
-                  <IconButton onClick={() => deleteRecipe(selectedRecipe.id)} color="error">
-                    <Delete />
-                  </IconButton>
-                )}
-              </Box>
+              {selectedRecipe.pinned && (
+                <Button
+                  onClick={() => {
+                    togglePin(selectedRecipe.id);
+                    setViewOpen(false);
+                    setSelectedRecipe(null);
+                  }}
+                  variant="outlined"
+                  size="small"
+                  className="secondary-button"
+                >
+                  Unpin Recipe
+                </Button>
+              )}
             </DialogTitle>
             <DialogContent>
               <Box>
@@ -1030,14 +1146,17 @@ function App() {
                 {selectedRecipe.ingredients.map((ingredient, index) => {
                   const ingredientKey = `${selectedRecipe.id}-${index}`;
                   return (
-                    <ListItem key={index} sx={{ py: 0.5 }}>
+                    <ListItem key={ingredientKey} sx={{ py: 0.5 }}>
                       <Checkbox
                         checked={checkedIngredients[ingredientKey] || false}
                         onChange={(e) => {
-                          setCheckedIngredients(prev => ({
-                            ...prev,
-                            [ingredientKey]: e.target.checked
-                          }));
+                          const newCheckedState = { ...checkedIngredients };
+                          if (e.target.checked) {
+                            newCheckedState[ingredientKey] = true;
+                          } else {
+                            delete newCheckedState[ingredientKey];
+                          }
+                          setCheckedIngredients(newCheckedState);
                         }}
                         sx={{ 
                           mr: 1,
@@ -1074,6 +1193,18 @@ function App() {
               )}
               </Box>
             </DialogContent>
+            {isAdmin && (
+              <DialogActions>
+                <Button 
+                  onClick={() => deleteRecipe(selectedRecipe.id)} 
+                  color="error" 
+                  startIcon={<Delete />}
+                  variant="outlined"
+                >
+                  Delete Recipe
+                </Button>
+              </DialogActions>
+            )}
           </>
         )}
       </Dialog>
@@ -1088,6 +1219,7 @@ function App() {
         onClick={() => {
           setSelectedRecipe(recipe);
           setPortionMultiplier(1);
+          setCheckedIngredients({}); // Clear checkbox state when switching recipes
           setViewOpen(true);
         }}
       >
@@ -1131,8 +1263,8 @@ function App() {
           </Box>
         </CardContent>
         
-        {isAdmin && (
-          <Box sx={{ position: 'absolute', bottom: 8, right: 8, display: 'flex', gap: 0.5, zIndex: 3 }}>
+        <Box sx={{ position: 'absolute', bottom: 8, right: 8, display: 'flex', gap: 0.5, zIndex: 3 }}>
+          {isAdmin && (
             <IconButton
               size="small"
               onClick={(e) => {
@@ -1143,18 +1275,18 @@ function App() {
             >
               <Edit sx={{ color: 'black' }} />
             </IconButton>
-            <IconButton
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                togglePin(recipe.id);
-              }}
-              sx={{ bgcolor: 'rgba(255,255,255,0.9)' }}
-            >
-              {recipe.pinned ? <PushPin sx={{ color: 'black' }} /> : <PushPinOutlined sx={{ color: 'black' }} />}
-            </IconButton>
-          </Box>
-        )}
+          )}
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              togglePin(recipe.id);
+            }}
+            sx={{ bgcolor: 'rgba(255,255,255,0.9)' }}
+          >
+            {recipe.pinned ? <PushPin sx={{ color: 'black' }} /> : <PushPinOutlined sx={{ color: 'black' }} />}
+          </IconButton>
+        </Box>
       </Card>
     );
   }
