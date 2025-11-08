@@ -57,7 +57,7 @@ This will automatically:
 ## Deployment
 
 The app is configured for GitHub Pages deployment:
-- Homepage: `https://clairehuang.github.io/cookbook`
+- Homepage: `https://amidthestars.github.io/cookbook`
 - Automatic deployment via `npm run deploy`
 - Static files served from `gh-pages` branch
 
