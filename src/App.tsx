@@ -67,18 +67,26 @@ function App() {
     notes: ''
   });
 
+  const loadDefaultRecipes = async () => {
+    try {
+      const response = await fetch(process.env.PUBLIC_URL + '/recipes.json');
+      const defaultRecipes = await response.json();
+      setRecipes(defaultRecipes);
+      // Save default recipes to localStorage for guests
+      localStorage.setItem('recipes', JSON.stringify(defaultRecipes));
+    } catch (error) {
+      console.error('Failed to load default recipes:', error);
+      setRecipes([]);
+    }
+  };
+
   useEffect(() => {
     const saved = localStorage.getItem('recipes');
     if (saved) {
       setRecipes(JSON.parse(saved));
     } else {
-      // Try to recover from backup if main recipes are missing
-      const backup = localStorage.getItem('recipes_backup');
-      if (backup) {
-        const backupRecipes = JSON.parse(backup);
-        setRecipes(backupRecipes);
-        localStorage.setItem('recipes', backup); // Restore from backup
-      }
+      // Load default recipes from public/recipes.json
+      loadDefaultRecipes();
     }
     
     const auth = localStorage.getItem('auth');
@@ -94,14 +102,16 @@ function App() {
     setAddOpen(false);
     setEditOpen(false);
     
-    // Auto-open pinned recipe if it exists
-    const pinnedRecipe = JSON.parse(saved || '[]').find((r: Recipe) => r.pinned);
-    if (pinnedRecipe) {
-      setSelectedRecipe(pinnedRecipe);
-      setPortionMultiplier(1);
-      setViewOpen(true);
-    } else {
-      setViewOpen(false);
+    // Auto-open pinned recipe if it exists (only after recipes are loaded)
+    if (saved) {
+      const pinnedRecipe = JSON.parse(saved).find((r: Recipe) => r.pinned);
+      if (pinnedRecipe) {
+        setSelectedRecipe(pinnedRecipe);
+        setPortionMultiplier(1);
+        setViewOpen(true);
+      } else {
+        setViewOpen(false);
+      }
     }
   }, []);
 
@@ -113,7 +123,7 @@ function App() {
   // Auto-open pinned recipe when recipes change
   useEffect(() => {
     const pinnedRecipe = recipes.find(r => r.pinned);
-    if (pinnedRecipe && !loginOpen) {
+    if (pinnedRecipe && !loginOpen && recipes.length > 0) {
       setSelectedRecipe(pinnedRecipe);
       setPortionMultiplier(1);
       setViewOpen(true);
@@ -436,7 +446,13 @@ function App() {
             <Button
               variant="outlined"
               size="large"
-              onClick={() => setAddOpen(true)}
+              onClick={() => {
+                setNewRecipe({ title: '', ingredients: [''], instructions: [''], image: '', servings: '', url: '', notes: '' });
+                setImagePreview('');
+                setUrl('');
+                setAddTab(0);
+                setAddOpen(true);
+              }}
               className="secondary-button"
               sx={{
                 px: 4,
@@ -532,7 +548,13 @@ function App() {
               },
               boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
             }}
-            onClick={() => setAddOpen(true)}
+            onClick={() => {
+              setNewRecipe({ title: '', ingredients: [''], instructions: [''], image: '', servings: '', url: '', notes: '' });
+              setImagePreview('');
+              setUrl('');
+              setAddTab(0);
+              setAddOpen(true);
+            }}
           >
             <Add />
           </Fab>
