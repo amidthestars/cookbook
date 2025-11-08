@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Storage</title>
+</head>
+<body>
+    <h1>Clear Browser Storage</h1>
+    <button onclick="clearStorage()">Clear All Storage</button>
+    <button onclick="showStorage()">Show Storage</button>
+    <div id="output"></div>
+    
+    <script>
+        function clearStorage() {
+            localStorage.clear();
+            sessionStorage.clear();
+            document.getElementById('output').innerHTML = 'Storage cleared!';
+        }
+        
+        function showStorage() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<h3>LocalStorage:</h3><pre>' + JSON.stringify(localStorage, null, 2) + '</pre>';
+        }
+    </script>
+</body>
+</html>
