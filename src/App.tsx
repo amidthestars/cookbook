@@ -308,11 +308,49 @@ function App() {
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Check file size (limit to 1MB)
+      if (file.size > 1024 * 1024) {
+        alert('Image too large. Please choose an image smaller than 1MB.');
+        return;
+      }
+
+      // Create canvas for compression
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calculate new dimensions (max 400px width/height)
+        const maxSize = 400;
+        let { width, height } = img;
+        
+        if (width > height) {
+          if (width > maxSize) {
+            height = (height * maxSize) / width;
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width = (width * maxSize) / height;
+            height = maxSize;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and compress
+        ctx?.drawImage(img, 0, 0, width, height);
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        
+        setNewRecipe({ ...newRecipe, image: compressedDataUrl });
+        setImagePreview(compressedDataUrl);
+      };
+      
+      // Read file as data URL for the image element
       const reader = new FileReader();
       reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setNewRecipe({ ...newRecipe, image: result });
-        setImagePreview(result);
+        img.src = e.target?.result as string;
       };
       reader.readAsDataURL(file);
     }
@@ -411,10 +449,24 @@ function App() {
             onClick={forceLogout}
             variant="outlined"
             className="secondary-button"
-            sx={{ pointerEvents: 'auto' }}
+            sx={{ pointerEvents: 'auto', mr: 1 }}
           >
             Logout
           </Button>
+          {isAdmin && (
+            <Button 
+              onClick={() => {
+                localStorage.removeItem('recipes');
+                localStorage.removeItem('recipes_backup');
+                loadDefaultRecipes();
+              }}
+              variant="outlined"
+              className="secondary-button"
+              sx={{ pointerEvents: 'auto' }}
+            >
+              Reset to Default
+            </Button>
+          )}
         </Box>
       </Box>
 
