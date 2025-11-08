@@ -7,6 +7,9 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #FFC5D3;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* Main titles */
@@ -14,8 +17,13 @@ body {
   color: black !important;
   font-weight: bold !important;
   font-family: 'Lilita One', sans-serif !important;
-  font-size: 5rem !important;
-  margin-left: -25px !important;
+}
+
+/* Desktop only - left align with margin */
+@media (min-width: 600px) {
+  .main-title {
+    margin-left: -25px !important;
+  }
 }
 
 .section-title {

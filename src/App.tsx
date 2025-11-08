@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { 
   Container, Typography, Card, CardContent, Button, 
   TextField, Box, Fab, Dialog, DialogTitle, 
-  DialogContent, DialogActions, Chip, IconButton,
+  DialogContent, DialogActions, IconButton,
   Slider, List, ListItem, ListItemText, Tabs, Tab, Checkbox, ThemeProvider, createTheme
 } from '@mui/material';
-import { Add, Delete, PushPin, PushPinOutlined, Restaurant, Close, Edit, PhotoCamera, FileUpload, FileDownload } from '@mui/icons-material';
+import { Add, Delete, PushPin, PushPinOutlined, Close, Edit, PhotoCamera, FileUpload, FileDownload } from '@mui/icons-material';
 import { Grid } from '@mui/material';
 import { scrapeRecipeFromUrl } from './recipeScraper';
 
@@ -121,7 +121,7 @@ function App() {
         setViewOpen(true);
       }
     }
-  }, [recipes, loginOpen]);
+  }, [recipes, loginOpen, viewOpen]);
 
   // Force logout function
   const forceLogout = () => {
@@ -168,33 +168,33 @@ function App() {
       }
     };
     
-    // Emergency close for mobile - triple tap anywhere to close all dialogs
+    // Emergency close for mobile - 5 rapid taps anywhere to close all dialogs
     let tapCount = 0;
     let tapTimer: NodeJS.Timeout;
-    const handleTripleTap = () => {
+    const handleFrustrationTaps = () => {
       tapCount++;
       if (tapCount === 1) {
         tapTimer = setTimeout(() => {
           tapCount = 0;
-        }, 1000);
-      } else if (tapCount === 3) {
+        }, 500); // Faster timing - 500ms window
+      } else if (tapCount === 5) {
         clearTimeout(tapTimer);
         tapCount = 0;
         if (loginOpen || addOpen || editOpen || viewOpen) {
           closeAllDialogs();
-          console.log('Emergency close triggered by triple tap');
+          console.log('Emergency close triggered by 5 rapid taps');
         }
       }
     };
     
     document.addEventListener('click', handleClick);
     document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('touchend', handleTripleTap);
+    document.addEventListener('touchend', handleFrustrationTaps);
     
     return () => {
       document.removeEventListener('click', handleClick);
       document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('touchend', handleTripleTap);
+      document.removeEventListener('touchend', handleFrustrationTaps);
       if (tapTimer) clearTimeout(tapTimer);
     };
   }, [loginOpen, addOpen, editOpen, viewOpen]);
@@ -443,7 +443,6 @@ function App() {
     });
   };
 
-  const pinnedRecipe = recipes.find(r => r.pinned);
   const otherRecipes = recipes.filter(r => !r.pinned);
 
 
@@ -502,8 +501,10 @@ function App() {
       {/* Header */}
       <Box sx={{ 
         display: 'flex', 
+        flexDirection: { xs: 'column', sm: 'row' },
         justifyContent: 'space-between', 
-        alignItems: 'center', 
+        alignItems: { xs: 'center', sm: 'center' },
+        gap: { xs: 2, sm: 0 },
         mb: 1,
         p: 3
       }}>
@@ -511,37 +512,47 @@ function App() {
           variant="h3" 
           className="main-title"
           sx={{
-            fontSize: { xs: '2rem', sm: '3rem' }
+            fontSize: { xs: '4rem', sm: '5rem' }
           }}
         >
           COOKBOOK
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="body2" sx={{ color: 'black' }}>
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: { xs: 'column', sm: 'row' },
+          alignItems: 'center', 
+          gap: 1,
+          textAlign: { xs: 'center', sm: 'left' }
+        }}>
+          <Typography variant="body2" sx={{ color: 'black', fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
             {isAdmin ? 'ADMIN MODE' : 'GUEST MODE'}
           </Typography>
-          <Button 
-            onClick={forceLogout}
-            variant="outlined"
-            className="secondary-button"
-            sx={{ pointerEvents: 'auto', mr: 1 }}
-          >
-            Logout
-          </Button>
-          {isAdmin && (
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
             <Button 
-              onClick={() => {
-                localStorage.removeItem('recipes');
-                localStorage.removeItem('recipes_backup');
-                loadDefaultRecipes();
-              }}
+              onClick={forceLogout}
               variant="outlined"
               className="secondary-button"
+              size="small"
               sx={{ pointerEvents: 'auto' }}
             >
-              Reset to Default
+              Logout
             </Button>
-          )}
+            {isAdmin && (
+              <Button 
+                onClick={() => {
+                  localStorage.removeItem('recipes');
+                  localStorage.removeItem('recipes_backup');
+                  loadDefaultRecipes();
+                }}
+                variant="outlined"
+                className="secondary-button"
+                size="small"
+                sx={{ pointerEvents: 'auto' }}
+              >
+                Reset to Default
+              </Button>
+            )}
+          </Box>
         </Box>
       </Box>
 
