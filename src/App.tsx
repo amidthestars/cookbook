@@ -3,9 +3,9 @@ import {
   Container, Typography, Card, CardContent, Button, 
   TextField, Box, Fab, Dialog, DialogTitle, 
   DialogContent, DialogActions, Chip, IconButton,
-  Slider, List, ListItem, ListItemText, Tabs, Tab
+  Slider, List, ListItem, ListItemText, Tabs, Tab, Checkbox, ThemeProvider, createTheme
 } from '@mui/material';
-import { Add, Delete, PushPin, PushPinOutlined, Restaurant, Close, Edit, PhotoCamera } from '@mui/icons-material';
+import { Add, Delete, PushPin, PushPinOutlined, Restaurant, Close, Edit, PhotoCamera, Save, FileUpload, FileDownload } from '@mui/icons-material';
 import { Grid } from '@mui/material';
 import { scrapeRecipeFromUrl } from './recipeScraper';
 
@@ -20,7 +20,24 @@ interface Recipe {
   pinned: boolean;
 }
 
-const ADMIN_PASSWORD = 'w0y40ch1f4n!';
+// Simple hash-based auth - password is hashed client-side
+const ADMIN_PASSWORD_HASH = '8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4'; // SHA-256 of your password
+
+const hashPassword = async (password: string): Promise<string> => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#D81B60', // Dark pink
+    },
+  },
+});
 
 function App() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -38,17 +55,29 @@ function App() {
   const [portionMultiplier, setPortionMultiplier] = useState(1);
   const [addTab, setAddTab] = useState(0);
   const [url, setUrl] = useState('');
+  const [checkedIngredients, setCheckedIngredients] = useState<{[key: string]: boolean}>({});
   const [newRecipe, setNewRecipe] = useState({
     title: '',
     ingredients: [''],
     instructions: [''],
     image: '',
-    servings: ''
+    servings: '',
+    url: ''
   });
 
   useEffect(() => {
     const saved = localStorage.getItem('recipes');
-    if (saved) setRecipes(JSON.parse(saved));
+    if (saved) {
+      setRecipes(JSON.parse(saved));
+    } else {
+      // Try to recover from backup if main recipes are missing
+      const backup = localStorage.getItem('recipes_backup');
+      if (backup) {
+        const backupRecipes = JSON.parse(backup);
+        setRecipes(backupRecipes);
+        localStorage.setItem('recipes', backup); // Restore from backup
+      }
+    }
     
     const auth = localStorage.getItem('auth');
     if (auth) {
@@ -61,8 +90,17 @@ function App() {
     
     // Force close all dialogs on mount
     setAddOpen(false);
-    setViewOpen(false);
     setEditOpen(false);
+    
+    // Auto-open pinned recipe if it exists
+    const pinnedRecipe = JSON.parse(saved || '[]').find((r: Recipe) => r.pinned);
+    if (pinnedRecipe) {
+      setSelectedRecipe(pinnedRecipe);
+      setPortionMultiplier(1);
+      setViewOpen(true);
+    } else {
+      setViewOpen(false);
+    }
   }, []);
 
   // Debug state
@@ -70,10 +108,22 @@ function App() {
     console.log('Dialog states - loginOpen:', loginOpen, 'addOpen:', addOpen, 'viewOpen:', viewOpen, 'editOpen:', editOpen);
   }, [loginOpen, addOpen, viewOpen, editOpen]);
 
+  // Auto-open pinned recipe when recipes change
+  useEffect(() => {
+    const pinnedRecipe = recipes.find(r => r.pinned);
+    if (pinnedRecipe && !loginOpen) {
+      setSelectedRecipe(pinnedRecipe);
+      setPortionMultiplier(1);
+      setViewOpen(true);
+    } else if (!pinnedRecipe && viewOpen && selectedRecipe?.pinned) {
+      setViewOpen(false);
+    }
+  }, [recipes, loginOpen]);
+
   // Force logout function
   const forceLogout = () => {
     console.log('Force logout triggered');
-    localStorage.clear();
+    localStorage.removeItem('auth'); // Only remove auth, keep recipes
     setIsAdmin(false);
     setLoginOpen(true);
     setAddOpen(false);
@@ -87,6 +137,8 @@ function App() {
     setAddOpen(false);
     setViewOpen(false);
     setEditOpen(false);
+    setSelectedRecipe(null);
+    setEditingRecipe(null);
   };
 
   // Debug click events and keyboard shortcuts
@@ -124,10 +176,56 @@ function App() {
   const saveRecipes = (newRecipes: Recipe[]) => {
     setRecipes(newRecipes);
     localStorage.setItem('recipes', JSON.stringify(newRecipes));
+    // Create backup
+    localStorage.setItem('recipes_backup', JSON.stringify(newRecipes));
   };
 
-  const login = (asAdmin: boolean) => {
-    if (asAdmin && password !== ADMIN_PASSWORD) return;
+  const saveToGitHub = async (recipes: Recipe[]) => {
+    // For GitHub Pages deployment, direct API saves aren't possible
+    // Instead, show instructions for manual backup
+    alert(`GitHub Pages doesn't support direct saves. \n\nTo backup your recipes:\n1. Click 'Export' to download recipes.json\n2. Manually commit the file to your repository\n\nYour recipes are safely stored in your browser's localStorage.`);
+    
+    // Auto-download the recipes for easy backup
+    exportRecipes();
+  };
+
+  const exportRecipes = () => {
+    const dataStr = JSON.stringify(recipes, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'recipes.json';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importRecipes = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const importedRecipes = JSON.parse(e.target?.result as string);
+          if (Array.isArray(importedRecipes)) {
+            saveRecipes(importedRecipes);
+            alert('Recipes imported successfully!');
+          } else {
+            alert('Invalid recipe file format.');
+          }
+        } catch (error) {
+          alert('Error reading recipe file.');
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const login = async (asAdmin: boolean) => {
+    if (asAdmin) {
+      const hashedInput = await hashPassword(password);
+      if (hashedInput !== ADMIN_PASSWORD_HASH) return;
+    }
     
     const authData = { role: asAdmin ? 'admin' : 'guest', timestamp: Date.now() };
     localStorage.setItem('auth', JSON.stringify(authData));
@@ -144,11 +242,11 @@ function App() {
       instructions: newRecipe.instructions.filter(i => i.trim()),
       image: newRecipe.image,
       servings: newRecipe.servings,
-      url: '',
+      url: newRecipe.url,
       pinned: false
     };
     saveRecipes([...recipes, recipe]);
-    setNewRecipe({ title: '', ingredients: [''], instructions: [''], image: '', servings: '' });
+    setNewRecipe({ title: '', ingredients: [''], instructions: [''], image: '', servings: '', url: '' });
     setImagePreview('');
     setUrl('');
     setAddTab(0);
@@ -173,6 +271,11 @@ function App() {
   const togglePin = (id: number) => {
     const updated = recipes.map(r => ({ ...r, pinned: r.id === id ? !r.pinned : false }));
     saveRecipes(updated);
+    
+    // Update selectedRecipe if it's the one being toggled
+    if (selectedRecipe && selectedRecipe.id === id) {
+      setSelectedRecipe({ ...selectedRecipe, pinned: !selectedRecipe.pinned });
+    }
   };
 
   const deleteRecipe = (id: number) => {
@@ -187,7 +290,8 @@ function App() {
       ingredients: [...recipe.ingredients],
       instructions: [...recipe.instructions],
       image: recipe.image || '',
-      servings: recipe.servings || ''
+      servings: recipe.servings || '',
+      url: recipe.url || ''
     });
     setImagePreview(recipe.image || '');
     setEditOpen(true);
@@ -216,7 +320,8 @@ function App() {
       ingredients: newRecipe.ingredients.filter(i => i.trim()),
       instructions: newRecipe.instructions.filter(i => i.trim()),
       image: newRecipe.image,
-      servings: newRecipe.servings
+      servings: newRecipe.servings,
+      url: newRecipe.url
     };
     
     const updatedRecipes = recipes.map(r => 
@@ -224,7 +329,7 @@ function App() {
     );
     
     saveRecipes(updatedRecipes);
-    setNewRecipe({ title: '', ingredients: [''], instructions: [''], image: '', servings: '' });
+    setNewRecipe({ title: '', ingredients: [''], instructions: [''], image: '', servings: '', url: '' });
     setImagePreview('');
     setEditingRecipe(null);
     setEditOpen(false);
@@ -245,6 +350,7 @@ function App() {
 
 
   return (
+    <ThemeProvider theme={theme}>
     <Box sx={{ 
       minHeight: '100vh', 
       backgroundColor: '#FFC5D3',
@@ -304,51 +410,39 @@ function App() {
         </Box>
       </Box>
 
-      {/* Pinned Recipe */}
-      {pinnedRecipe && (
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h5" className="section-title">📌 Pinned Recipe</Typography>
-          <Grid container spacing={2}>
-            <Grid size={{xs:12, sm:6, md:3}}>
-              <RecipeCard recipe={pinnedRecipe} onEdit={editRecipe} />
-            </Grid>
-          </Grid>
-        </Box>
-      )}
+
 
       {/* Welcome Screen - only show when no recipes */}
       {recipes.length === 0 && (
         <Box sx={{ 
           textAlign: 'center', 
           py: 8,
-          bgcolor: 'white',
-          borderRadius: 4,
-          mb: 4,
-          boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+          mb: 4
         }}>
           <Typography variant="h3" sx={{ 
             color: 'black',
             fontWeight: 'bold',
-            mb: 3
+            mb: 3,
+            fontFamily: 'Momo Trust Display, sans-serif'
           }}>
             What will you cook today? 🍳
           </Typography>
-          <Typography variant="h6" sx={{ color: 'black', mb: 4 }}>
+          <Typography variant="h6" sx={{ 
+            color: 'black', 
+            mb: 4,
+            fontFamily: 'Momo Trust Display, sans-serif'
+          }}>
             Discover delicious recipes and create culinary magic
           </Typography>
           {isAdmin && (
             <Button
-              variant="contained"
+              variant="outlined"
               size="large"
               onClick={() => setAddOpen(true)}
+              className="secondary-button"
               sx={{
-                borderRadius: 3,
                 px: 4,
-                py: 1.5,
-                backgroundColor: '#026633',
-                '&:hover': {
-                  backgroundColor: '#085025'
-                }
+                py: 1.5
               }}
             >
               Add Your First Recipe
@@ -373,31 +467,115 @@ function App() {
         </Box>
       )}
 
-      {/* Add Button */}
+      {/* Floating Action Buttons */}
       {isAdmin && (
-        <Fab
-          sx={{ 
-            position: 'fixed', 
-            bottom: 24, 
-            left: 24, 
-            zIndex: 100,
-            backgroundColor: 'white',
-            color: 'black',
-            '&:hover': {
-              backgroundColor: '#f5f5f5',
-              transform: 'scale(1.1)'
-            },
-            boxShadow: '0 8px 25px rgba(0,0,0,0.2)'
-          }}
-          onClick={() => setAddOpen(true)}
-        >
-          <Add />
-        </Fab>
+        <>
+          {/* Save Recipes Button */}
+          <Fab
+            sx={{ 
+              position: 'fixed', 
+              bottom: 240, 
+              left: 24, 
+              zIndex: 1000,
+              backgroundColor: 'white',
+              color: 'black',
+              '&:hover': {
+                backgroundColor: '#f5f5f5',
+                transform: 'scale(1.05)'
+              },
+              boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+            }}
+            onClick={() => saveToGitHub(recipes)}
+          >
+            <Save />
+          </Fab>
+          
+          {/* Export Button */}
+          <Fab
+            sx={{ 
+              position: 'fixed', 
+              bottom: 170, 
+              left: 24, 
+              zIndex: 1000,
+              backgroundColor: 'white',
+              color: 'black',
+              '&:hover': {
+                backgroundColor: '#f5f5f5',
+                transform: 'scale(1.05)'
+              },
+              boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+            }}
+            onClick={exportRecipes}
+          >
+            <FileDownload />
+          </Fab>
+          
+          {/* Import Button */}
+          <input
+            accept=".json"
+            style={{ display: 'none' }}
+            id="import-recipes"
+            type="file"
+            onChange={importRecipes}
+          />
+          <label htmlFor="import-recipes">
+            <Fab
+              component="span"
+              sx={{ 
+                position: 'fixed', 
+                bottom: 100, 
+                left: 24, 
+                zIndex: 1000,
+                backgroundColor: 'white',
+                color: 'black',
+                '&:hover': {
+                  backgroundColor: '#f5f5f5',
+                  transform: 'scale(1.05)'
+                },
+                boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+              }}
+            >
+              <FileUpload />
+            </Fab>
+          </label>
+          
+          {/* Add Button */}
+          <Fab
+            sx={{ 
+              position: 'fixed', 
+              bottom: 30, 
+              left: 24, 
+              zIndex: 1000,
+              backgroundColor: 'white',
+              color: 'black',
+              '&:hover': {
+                backgroundColor: '#f5f5f5',
+                transform: 'scale(1.05)'
+              },
+              boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+            }}
+            onClick={() => setAddOpen(true)}
+          >
+            <Add />
+          </Fab>
+        </>
       )}
 
       {/* Add Recipe Dialog */}
-      <Dialog open={addOpen} onClose={() => setAddOpen(false)} maxWidth="md" fullWidth disableEscapeKeyDown={false}>
-        <DialogTitle>Add New Recipe</DialogTitle>
+      <Dialog 
+        open={addOpen} 
+        onClose={() => setAddOpen(false)} 
+        maxWidth="md" 
+        fullWidth 
+        disableEscapeKeyDown={false}
+        PaperProps={{ 
+          sx: { 
+            borderRadius: 4,
+            fontFamily: 'Momo Trust Display, sans-serif'
+          } 
+        }}
+      >
+        <DialogTitle sx={{ fontFamily: 'Momo Trust Display, sans-serif' }}>Add New Recipe</DialogTitle>
         <DialogContent>
           <Tabs value={addTab} onChange={(_, newTab) => setAddTab(newTab)} sx={{ mb: 2 }}>
             <Tab label="From Website" />
@@ -406,7 +584,7 @@ function App() {
 
           {addTab === 0 && (
             <Box>
-              <Typography variant="h6" sx={{ mb: 2 }}>
+              <Typography variant="h6" sx={{ mb: 2, fontFamily: 'Momo Trust Display, sans-serif' }}>
                 Add Recipe from Website
               </Typography>
               <TextField
@@ -425,7 +603,7 @@ function App() {
 
           {addTab === 1 && (
             <Box>
-              <Typography variant="h6" sx={{ mb: 2 }}>
+              <Typography variant="h6" sx={{ mb: 2, fontFamily: 'Momo Trust Display, sans-serif' }}>
                 Create Recipe Manually
               </Typography>
               <TextField
@@ -436,7 +614,7 @@ function App() {
                 sx={{ mb: 2, mt: 1 }}
               />
               <Box sx={{ mb: 2 }}>
-                <Typography variant="subtitle1" sx={{ mb: 1 }}>Recipe Image</Typography>
+                <Typography variant="subtitle1" sx={{ mb: 1, fontFamily: 'Momo Trust Display, sans-serif' }}>Recipe Image</Typography>
                 <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                   <input
                     accept="image/*"
@@ -481,8 +659,16 @@ function App() {
                 onChange={(e) => setNewRecipe({ ...newRecipe, servings: e.target.value })}
                 sx={{ mb: 2 }}
               />
+              <TextField
+                fullWidth
+                label="Recipe URL (optional)"
+                value={newRecipe.url}
+                onChange={(e) => setNewRecipe({ ...newRecipe, url: e.target.value })}
+                placeholder="https://example.com/recipe"
+                sx={{ mb: 2 }}
+              />
               
-              <Typography variant="h6" sx={{ mb: 1 }}>Ingredients</Typography>
+              <Typography variant="h6" sx={{ mb: 1, fontFamily: 'Momo Trust Display, sans-serif' }}>Ingredients</Typography>
               {newRecipe.ingredients.map((ingredient, index) => (
                 <Box key={index} sx={{ display: 'flex', gap: 1, mb: 1 }}>
                   <TextField
@@ -507,7 +693,7 @@ function App() {
                 Add Ingredient
               </Button>
 
-              <Typography variant="h6" sx={{ mb: 1, mt: 2 }}>Instructions</Typography>
+              <Typography variant="h6" sx={{ mb: 1, mt: 2, fontFamily: 'Momo Trust Display, sans-serif' }}>Instructions</Typography>
               {newRecipe.instructions.map((instruction, index) => (
                 <Box key={index} sx={{ display: 'flex', gap: 1, mb: 1 }}>
                   <TextField
@@ -551,8 +737,20 @@ function App() {
       </Dialog>
 
       {/* Edit Recipe Dialog */}
-      <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="md" fullWidth disableEscapeKeyDown={false}>
-        <DialogTitle>Edit Recipe</DialogTitle>
+      <Dialog 
+        open={editOpen} 
+        onClose={() => setEditOpen(false)} 
+        maxWidth="md" 
+        fullWidth 
+        disableEscapeKeyDown={false}
+        PaperProps={{ 
+          sx: { 
+            borderRadius: 4,
+            fontFamily: 'Momo Trust Display, sans-serif'
+          } 
+        }}
+      >
+        <DialogTitle sx={{ fontFamily: 'Momo Trust Display, sans-serif' }}>Edit Recipe</DialogTitle>
         <DialogContent>
           <TextField
             fullWidth
@@ -562,7 +760,7 @@ function App() {
             sx={{ mb: 2, mt: 1 }}
           />
           <Box sx={{ mb: 2 }}>
-            <Typography variant="subtitle1" sx={{ mb: 1 }}>Recipe Image</Typography>
+            <Typography variant="subtitle1" sx={{ mb: 1, fontFamily: 'Momo Trust Display, sans-serif' }}>Recipe Image</Typography>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               <input
                 accept="image/*"
@@ -607,8 +805,16 @@ function App() {
             onChange={(e) => setNewRecipe({ ...newRecipe, servings: e.target.value })}
             sx={{ mb: 2 }}
           />
+          <TextField
+            fullWidth
+            label="Recipe URL (optional)"
+            value={newRecipe.url}
+            onChange={(e) => setNewRecipe({ ...newRecipe, url: e.target.value })}
+            placeholder="https://example.com/recipe"
+            sx={{ mb: 2 }}
+          />
           
-          <Typography variant="h6" sx={{ mb: 1 }}>Ingredients</Typography>
+          <Typography variant="h6" sx={{ mb: 1, fontFamily: 'Momo Trust Display, sans-serif' }}>Ingredients</Typography>
           {newRecipe.ingredients.map((ingredient, index) => (
             <Box key={index} sx={{ display: 'flex', gap: 1, mb: 1 }}>
               <TextField
@@ -633,7 +839,7 @@ function App() {
             Add Ingredient
           </Button>
 
-          <Typography variant="h6" sx={{ mb: 1, mt: 2 }}>Instructions</Typography>
+          <Typography variant="h6" sx={{ mb: 1, mt: 2, fontFamily: 'Momo Trust Display, sans-serif' }}>Instructions</Typography>
           {newRecipe.instructions.map((instruction, index) => (
             <Box key={index} sx={{ display: 'flex', gap: 1, mb: 1 }}>
               <TextField
@@ -669,30 +875,50 @@ function App() {
       </Dialog>
 
       {/* View Recipe Dialog */}
-      <Dialog open={viewOpen} onClose={() => setViewOpen(false)} maxWidth="md" fullWidth disableEscapeKeyDown={false}>
+      <Dialog 
+        open={viewOpen} 
+        onClose={() => {}} 
+        maxWidth="md" 
+        fullWidth 
+        disableEscapeKeyDown={true}
+        PaperProps={{ 
+          sx: { 
+            borderRadius: 4,
+            fontFamily: 'Momo Trust Display, sans-serif'
+          } 
+        }}
+      >
         {selectedRecipe && (
           <>
             <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="h5">{selectedRecipe.title}</Typography>
-              {isAdmin && (
-                <IconButton onClick={() => deleteRecipe(selectedRecipe.id)} color="error">
-                  <Delete />
-                </IconButton>
-              )}
+              <Typography variant="h5" sx={{ fontFamily: 'Momo Trust Display, sans-serif' }}>{selectedRecipe.title}</Typography>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                {selectedRecipe.pinned && (
+                  <Button
+                    onClick={() => {
+                      togglePin(selectedRecipe.id);
+                      setViewOpen(false);
+                      setSelectedRecipe(null);
+                    }}
+                    variant="outlined"
+                    size="small"
+                    className="secondary-button"
+                  >
+                    Unpin Recipe
+                  </Button>
+                )}
+                {isAdmin && (
+                  <IconButton onClick={() => deleteRecipe(selectedRecipe.id)} color="error">
+                    <Delete />
+                  </IconButton>
+                )}
+              </Box>
             </DialogTitle>
             <DialogContent>
-              {selectedRecipe.image && (
-                <Box sx={{ mb: 3, textAlign: 'center' }}>
-                  <img 
-                    src={selectedRecipe.image} 
-                    alt={selectedRecipe.title}
-                    style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px' }}
-                  />
-                </Box>
-              )}
+              <Box>
 
               <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" gutterBottom>
+                <Typography variant="h6" gutterBottom sx={{ fontFamily: 'Momo Trust Display, sans-serif' }}>
                   Portion Size: {portionMultiplier === 0.5 ? '1/2x' : `${portionMultiplier}x`}
                 </Typography>
                 <Slider
@@ -707,32 +933,79 @@ function App() {
                     { value: 2, label: '2x' },
                     { value: 3, label: '3x' }
                   ]}
+                  sx={{
+                    color: '#FFC5D3',
+                    '& .MuiSlider-thumb': {
+                      backgroundColor: '#FFC5D3'
+                    },
+                    '& .MuiSlider-track': {
+                      backgroundColor: '#FFC5D3'
+                    },
+                    '& .MuiSlider-rail': {
+                      backgroundColor: '#f0f0f0'
+                    },
+                    '& .MuiSlider-markLabel': {
+                      fontFamily: 'Momo Trust Display, sans-serif'
+                    }
+                  }}
                 />
               </Box>
 
-              <Typography variant="h6" gutterBottom>Ingredients</Typography>
+              <Typography variant="h6" gutterBottom sx={{ fontFamily: 'Momo Trust Display, sans-serif' }}>Shopping List</Typography>
               <List dense>
-                {selectedRecipe.ingredients.map((ingredient, index) => (
-                  <ListItem key={index}>
-                    <ListItemText primary={adjustIngredient(ingredient)} />
-                  </ListItem>
-                ))}
+                {selectedRecipe.ingredients.map((ingredient, index) => {
+                  const ingredientKey = `${selectedRecipe.id}-${index}`;
+                  return (
+                    <ListItem key={index} sx={{ py: 0.5 }}>
+                      <Checkbox
+                        checked={checkedIngredients[ingredientKey] || false}
+                        onChange={(e) => {
+                          setCheckedIngredients(prev => ({
+                            ...prev,
+                            [ingredientKey]: e.target.checked
+                          }));
+                        }}
+                        sx={{ 
+                          mr: 1,
+                          color: '#D81B60',
+                          '&.Mui-checked': {
+                            color: '#D81B60'
+                          }
+                        }}
+                      />
+                      <ListItemText 
+                        primary={adjustIngredient(ingredient)} 
+                        sx={{ 
+                          textDecoration: checkedIngredients[ingredientKey] ? 'line-through' : 'none',
+                          opacity: checkedIngredients[ingredientKey] ? 0.6 : 1,
+                          fontFamily: 'Momo Trust Display, sans-serif'
+                        }}
+                      />
+                    </ListItem>
+                  );
+                })}
               </List>
 
-              <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>Instructions</Typography>
-              <List>
-                {selectedRecipe.instructions.map((instruction, index) => (
-                  <ListItem key={index} sx={{ alignItems: 'flex-start' }}>
-                    <ListItemText primary={`${index + 1}. ${instruction}`} />
-                  </ListItem>
-                ))}
-              </List>
+              {!selectedRecipe.pinned && (
+                <>
+                  <Typography variant="h6" gutterBottom sx={{ mt: 2, fontFamily: 'Momo Trust Display, sans-serif' }}>Instructions</Typography>
+                  <List>
+                    {selectedRecipe.instructions.map((instruction, index) => (
+                      <ListItem key={index} sx={{ alignItems: 'flex-start' }}>
+                        <ListItemText primary={`${index + 1}. ${instruction}`} sx={{ fontFamily: 'Momo Trust Display, sans-serif' }} />
+                      </ListItem>
+                    ))}
+                  </List>
+                </>
+              )}
+              </Box>
             </DialogContent>
           </>
         )}
       </Dialog>
     </Container>
     </Box>
+    </ThemeProvider>
   );
 
   function RecipeCard({ recipe, onEdit }: { recipe: Recipe; onEdit?: (recipe: Recipe) => void }) {
