@@ -5,7 +5,7 @@ import {
   DialogContent, DialogActions, Chip, IconButton,
   Slider, List, ListItem, ListItemText, Tabs, Tab, Checkbox, ThemeProvider, createTheme
 } from '@mui/material';
-import { Add, Delete, PushPin, PushPinOutlined, Restaurant, Close, Edit, PhotoCamera, Save, FileUpload, FileDownload } from '@mui/icons-material';
+import { Add, Delete, PushPin, PushPinOutlined, Restaurant, Close, Edit, PhotoCamera, FileUpload, FileDownload } from '@mui/icons-material';
 import { Grid } from '@mui/material';
 import { scrapeRecipeFromUrl } from './recipeScraper';
 
@@ -21,7 +21,7 @@ interface Recipe {
 }
 
 // Simple hash-based auth - password is hashed client-side
-const ADMIN_PASSWORD_HASH = '8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4'; // SHA-256 of your password
+const ADMIN_PASSWORD_HASH = '1ed8988d8b366154376a378ecf2d4c271baccec00d73c563c5dc1a39b8b8a691'; // SHA-256 of your password
 
 const hashPassword = async (password: string): Promise<string> => {
   const encoder = new TextEncoder();
@@ -180,14 +180,7 @@ function App() {
     localStorage.setItem('recipes_backup', JSON.stringify(newRecipes));
   };
 
-  const saveToGitHub = async (recipes: Recipe[]) => {
-    // For GitHub Pages deployment, direct API saves aren't possible
-    // Instead, show instructions for manual backup
-    alert(`GitHub Pages doesn't support direct saves. \n\nTo backup your recipes:\n1. Click 'Export' to download recipes.json\n2. Manually commit the file to your repository\n\nYour recipes are safely stored in your browser's localStorage.`);
-    
-    // Auto-download the recipes for easy backup
-    exportRecipes();
-  };
+
 
   const exportRecipes = () => {
     const dataStr = JSON.stringify(recipes, null, 2);
@@ -470,26 +463,6 @@ function App() {
       {/* Floating Action Buttons */}
       {isAdmin && (
         <>
-          {/* Save Recipes Button */}
-          <Fab
-            sx={{ 
-              position: 'fixed', 
-              bottom: 240, 
-              left: 24, 
-              zIndex: 1000,
-              backgroundColor: 'white',
-              color: 'black',
-              '&:hover': {
-                backgroundColor: '#f5f5f5',
-                transform: 'scale(1.05)'
-              },
-              boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
-            }}
-            onClick={() => saveToGitHub(recipes)}
-          >
-            <Save />
-          </Fab>
-          
           {/* Export Button */}
           <Fab
             sx={{ 
@@ -1036,7 +1009,7 @@ function App() {
             {/* Paperclip effect */}
             <Box
               component="img"
-              src="binderclip.png"
+              src={process.env.PUBLIC_URL + "/binderclip.png"}
               sx={{
                 position: 'absolute',
                 top: -50,
